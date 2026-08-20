@@ -75,9 +75,9 @@ class MLService:
 
         for i, b in enumerate(bins):
             b_id = bin_ids[i]
-            curr_fill = float(feature_df.loc[i, "sensor_fill_level_pct"])
-            pred_fill = float(pred_fills[i])
-            ovf_prob = float(ovf_probs[i] * 100.0)
+            curr_fill = min(100.0, max(0.0, float(feature_df.loc[i, "sensor_fill_level_pct"])))
+            pred_fill = min(100.0, max(0.0, float(pred_fills[i])))
+            ovf_prob = min(100.0, max(0.0, float(ovf_probs[i] * 100.0)))
             ovf_flag = int(ovf_flags[i])
 
             # Calculate growth score (0-10 points for up to 30% fill increase in 6h)

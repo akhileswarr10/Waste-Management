@@ -176,8 +176,9 @@ class Database:
 
     def update_bin_fill(self, bin_id: str, new_fill: float, last_collected_at: Optional[str] = None):
         now_str = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        clamped_fill = min(100.0, max(0.0, float(new_fill)))
         if self.use_supabase and self.supabase:
-            payload = {"current_fill_level_pct": new_fill, "updated_at": now_str}
+            payload = {"current_fill_level_pct": clamped_fill, "updated_at": now_str}
             if last_collected_at:
                 payload["last_collected_at"] = last_collected_at
             self.supabase.table("bins").update(payload).eq("id", bin_id).execute()
@@ -187,12 +188,12 @@ class Database:
             if last_collected_at:
                 cursor.execute(
                     "UPDATE bins SET current_fill_level_pct = ?, last_collected_at = ?, updated_at = ? WHERE id = ?",
-                    (new_fill, last_collected_at, now_str, bin_id)
+                    (clamped_fill, last_collected_at, now_str, bin_id)
                 )
             else:
                 cursor.execute(
                     "UPDATE bins SET current_fill_level_pct = ?, updated_at = ? WHERE id = ?",
-                    (new_fill, now_str, bin_id)
+                    (clamped_fill, now_str, bin_id)
                 )
             conn.commit()
             conn.close()
@@ -206,7 +207,7 @@ class Database:
                 b_id = b["id"]
                 if b_id in fills_dict:
                     b_copy = dict(b)
-                    b_copy["current_fill_level_pct"] = fills_dict[b_id]
+                    b_copy["current_fill_level_pct"] = min(100.0, max(0.0, float(fills_dict[b_id])))
                     b_copy["updated_at"] = now_str
                     records.append(b_copy)
             if records:
@@ -215,7 +216,8 @@ class Database:
             conn = self._get_sqlite_conn()
             cursor = conn.cursor()
             for b_id, fill in fills_dict.items():
-                cursor.execute("UPDATE bins SET current_fill_level_pct = ?, updated_at = ? WHERE id = ?", (fill, now_str, b_id))
+                clamped_fill = min(100.0, max(0.0, float(fill)))
+                cursor.execute("UPDATE bins SET current_fill_level_pct = ?, updated_at = ? WHERE id = ?", (clamped_fill, now_str, b_id))
             conn.commit()
             conn.close()
 

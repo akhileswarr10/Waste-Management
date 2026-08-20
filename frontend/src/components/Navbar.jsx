@@ -75,61 +75,8 @@ export default function Navbar({
         </span>
       </div>
 
-      {/* Right Controls: Role Switcher & User Profile & Logout */}
+      {/* Right Controls: Sync, User Profile & Logout */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-        {/* Role Toggle Switch */}
-        <div style={{
-          display: 'flex',
-          background: 'rgba(0, 0, 0, 0.3)',
-          padding: '3px',
-          borderRadius: '10px',
-          border: '1px solid rgba(255, 255, 255, 0.05)'
-        }}>
-          <button
-            onClick={() => setActiveRole('admin')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '6px 12px',
-              borderRadius: '7px',
-              border: 'none',
-              cursor: 'pointer',
-              fontSize: '12px',
-              fontWeight: '600',
-              transition: 'all 0.2s',
-              background: activeRole === 'admin' ? 'rgba(16, 185, 129, 0.25)' : 'transparent',
-              color: activeRole === 'admin' ? '#34d399' : '#94a3b8',
-              border: activeRole === 'admin' ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid transparent'
-            }}
-          >
-            <Shield size={14} />
-            Admin Hub
-          </button>
-
-          <button
-            onClick={() => setActiveRole('driver')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '6px 12px',
-              borderRadius: '7px',
-              border: 'none',
-              cursor: 'pointer',
-              fontSize: '12px',
-              fontWeight: '600',
-              transition: 'all 0.2s',
-              background: activeRole === 'driver' ? 'rgba(99, 102, 241, 0.25)' : 'transparent',
-              color: activeRole === 'driver' ? '#818cf8' : '#94a3b8',
-              border: activeRole === 'driver' ? '1px solid rgba(99, 102, 241, 0.4)' : '1px solid transparent'
-            }}
-          >
-            <Truck size={14} />
-            Driver Route View
-          </button>
-        </div>
-
         {/* Refresh Data */}
         <button
           onClick={onRefresh}

@@ -110,8 +110,8 @@ class FeatureBuilder:
             b_id = b["id"]
             telemetry = telemetry_by_bin.get(b_id, [])
             
-            # Current fill (authoritative from bins table)
-            curr_fill = float(b.get("current_fill_level_pct", 0.0))
+            # Current fill (authoritative from bins table capped at 100.0%)
+            curr_fill = min(100.0, max(0.0, float(b.get("current_fill_level_pct", 0.0))))
             
             # Environmental readings
             latest_tel = telemetry[0] if telemetry else {}

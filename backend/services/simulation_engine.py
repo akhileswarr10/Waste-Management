@@ -97,8 +97,8 @@ class SimulationEngine:
                 prev_fill = current_fills[b_id]
                 new_fill = prev_fill + hourly_rate + spike
                 
-                # Bins can overflow up to 120% physically in simulation
-                new_fill = min(120.0, max(0.0, new_fill))
+                # Bins fill level is strictly capped between 0% and 100%
+                new_fill = min(100.0, max(0.0, new_fill))
                 current_fills[b_id] = new_fill
 
                 sensor_reading = min(100.0, max(0.0, new_fill + sensor_noise))
