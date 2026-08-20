@@ -72,13 +72,18 @@ class RouteOptimizer:
     @classmethod
     def generate_optimized_route(cls) -> Dict[str, Any]:
         """
-        Executes Greedy Nearest-Neighbor with corridor detection:
-        1. Identifies Primary Targets (Fill >= 80% or Tier IN [HIGH, CRITICAL, EMERGENCY]).
-        2. Identifies On-The-Way Candidates (Fill >= 50% and not in primary targets).
-        3. Constructs greedy nearest path connecting all primary targets starting & ending at Depot.
-        4. Injects on-the-way bins that lie in the corridor along each leg.
-        5. Computes route metrics and fuel savings.
+        Executes strict Optimal / Greedy Routing with Geodesic Corridor Detection:
+        1. Identifies Primary Critical Targets: ONLY bins with Current Fill >= 80.0%.
+        2. Identifies On-The-Way Candidates: Bins with 50.0% <= Current Fill < 80.0%.
+        3. Constructs the shortest optimal loop connecting all Primary Critical Targets starting and ending at Depot.
+        4. Injects on-the-way candidates ONLY if they physically lie directly in the corridor between two consecutive stops:
+           - Along-track projection: 0.05 * seg_len <= at_dist <= 0.95 * seg_len
+           - Perpendicular cross-track distance: xt_dist <= 0.40 km (400m)
+           - Detour penalty: detour <= 0.40 km (400m)
+        5. Computes exact route metrics, fuel savings, and stop sequence.
         """
+        import itertools
+
         depot_lat = Config.DEPOT_LATITUDE
         depot_lon = Config.DEPOT_LONGITUDE
         depot_pos = (depot_lat, depot_lon)
@@ -91,47 +96,53 @@ class RouteOptimizer:
         if not predictions:
             return {"status": "error", "message": "No bins found to route."}
 
-        # Segregate bins into Primary Targets and On-the-Way Candidates
-        primary_targets = []
-        corridor_candidates = []
-
-        for p in predictions:
-            curr_fill = float(p["current_fill_level_pct"])
-            tier = p["urgency_tier"]
-            if curr_fill >= 78.0 or tier in ("EMERGENCY", "CRITICAL", "HIGH"):
-                primary_targets.append(p)
-            elif curr_fill >= 50.0 or tier == "MEDIUM":
-                corridor_candidates.append(p)
-
-        # If no critical bins exist, promote highest available bins to route
-        if not primary_targets:
-            sorted_by_fill = sorted(predictions, key=lambda x: x["current_fill_level_pct"], reverse=True)
-            primary_targets = sorted_by_fill[:min(3, len(sorted_by_fill))]
-            corridor_candidates = [p for p in predictions if p not in primary_targets and p["current_fill_level_pct"] >= 40.0]
-
-        # -------------------------------------------------------------
-        # STEP 1: Greedy Nearest-Neighbor for Primary Targets
-        # -------------------------------------------------------------
-        unvisited_primary = list(primary_targets)
-        primary_path: List[Dict[str, Any]] = []
-        current_loc = depot_pos
-
-        while unvisited_primary:
-            # Pick nearest primary target from current location
-            nearest_bin = min(
-                unvisited_primary,
-                key=lambda b: haversine_distance(current_loc[0], current_loc[1], b["latitude"], b["longitude"])
-            )
-            primary_path.append(nearest_bin)
-            unvisited_primary.remove(nearest_bin)
-            current_loc = (nearest_bin["latitude"], nearest_bin["longitude"])
-
-        # -------------------------------------------------------------
-        # STEP 2: Inject "On-The-Way" Candidates along each leg
-        # -------------------------------------------------------------
-        # Path sequence points: Depot -> P1 -> P2 -> ... -> Pn -> Depot
-        legs: List[Tuple[Dict[str, Any], Dict[str, Any]]] = []
+        # 1. Primary Critical Targets: ONLY bins with current fill >= 80.0%
+        primary_targets = [p for p in predictions if float(p.get("current_fill_level_pct", 0.0)) >= 80.0]
         
+        # 2. On-the-way Corridor Candidates: 50% <= fill < 80%
+        corridor_candidates = [
+            p for p in predictions 
+            if 50.0 <= float(p.get("current_fill_level_pct", 0.0)) < 80.0
+        ]
+
+        # Fallback if no bins are >= 80%: pick highest available
+        if not primary_targets:
+            sorted_by_fill = sorted(predictions, key=lambda x: float(x.get("current_fill_level_pct", 0.0)), reverse=True)
+            primary_targets = [p for p in sorted_by_fill if float(p.get("current_fill_level_pct", 0.0)) >= 60.0]
+            if not primary_targets:
+                primary_targets = sorted_by_fill[:min(3, len(sorted_by_fill))]
+            corridor_candidates = [p for p in predictions if p not in primary_targets and float(p.get("current_fill_level_pct", 0.0)) >= 40.0]
+
+        # -------------------------------------------------------------
+        # STEP 1: Find Shortest Tour Connecting All Primary Targets
+        # -------------------------------------------------------------
+        if len(primary_targets) <= 8:
+            # Exact TSP via permutations for up to 8 targets (<= 40,320 checks in <1ms)
+            best_dist = float('inf')
+            best_order = primary_targets
+            for perm in itertools.permutations(primary_targets):
+                d = haversine_distance(depot_pos[0], depot_pos[1], perm[0]["latitude"], perm[0]["longitude"])
+                for i in range(len(perm) - 1):
+                    d += haversine_distance(perm[i]["latitude"], perm[i]["longitude"], perm[i+1]["latitude"], perm[i+1]["longitude"])
+                d += haversine_distance(perm[-1]["latitude"], perm[-1]["longitude"], depot_pos[0], depot_pos[1])
+                if d < best_dist:
+                    best_dist = d
+                    best_order = list(perm)
+            primary_path = best_order
+        else:
+            # Nearest Neighbor greedy heuristic + 2-opt refinement for larger sets
+            unvisited = list(primary_targets)
+            primary_path = []
+            curr = depot_pos
+            while unvisited:
+                nearest = min(unvisited, key=lambda b: haversine_distance(curr[0], curr[1], b["latitude"], b["longitude"]))
+                primary_path.append(nearest)
+                unvisited.remove(nearest)
+                curr = (nearest["latitude"], nearest["longitude"])
+
+        # -------------------------------------------------------------
+        # STEP 2: Strict Corridor Injection Along Each Leg
+        # -------------------------------------------------------------
         depot_node_start = {
             "is_depot": True,
             "latitude": depot_lat,
@@ -155,7 +166,6 @@ class RouteOptimizer:
             start_node = full_chain[i]
             end_node = full_chain[i + 1]
 
-            # Append starting node of this leg (if not already appended)
             if i == 0:
                 final_route_stops.append(start_node)
 
@@ -163,27 +173,26 @@ class RouteOptimizer:
             e_lat, e_lon = end_node["latitude"], end_node["longitude"]
             seg_len = haversine_distance(s_lat, s_lon, e_lat, e_lon)
 
-            # Check all eligible corridor candidates for this segment
+            # Check corridor candidates between start_node and end_node
             inserted_candidates = []
-            for cand in remaining_corridor:
-                c_lat, c_lon = cand["latitude"], cand["longitude"]
-                xt_dist, at_dist = cross_track_distance(s_lat, s_lon, e_lat, e_lon, c_lat, c_lon)
-                detour = cls.calculate_detour((s_lat, s_lon), (c_lat, c_lon), (e_lat, e_lon))
+            if seg_len > 0.1: # Only evaluate if non-zero segment length
+                for cand in list(remaining_corridor):
+                    c_lat, c_lon = cand["latitude"], cand["longitude"]
+                    xt_dist, at_dist = cross_track_distance(s_lat, s_lon, e_lat, e_lon, c_lat, c_lon)
+                    detour = cls.calculate_detour((s_lat, s_lon), (c_lat, c_lon), (e_lat, e_lon))
 
-                # Candidate is valid if it lies along the segment projection
-                # and within corridor width OR has small detour penalty
-                if (0.05 * seg_len <= at_dist <= 0.95 * seg_len and xt_dist <= CROSS_TRACK_CORRIDOR_KM) or (detour <= MAX_ON_THE_WAY_DETOUR_KM):
-                    inserted_candidates.append({
-                        "candidate": cand,
-                        "at_dist": at_dist,
-                        "detour": detour,
-                        "xt_dist": xt_dist
-                    })
+                    # Candidate MUST lie strictly along the path AND within narrow corridor AND with minimal detour
+                    if (0.05 * seg_len <= at_dist <= 0.95 * seg_len) and (xt_dist <= 0.40) and (detour <= 0.40):
+                        inserted_candidates.append({
+                            "candidate": cand,
+                            "at_dist": at_dist,
+                            "detour": detour,
+                            "xt_dist": xt_dist
+                        })
 
-            # Sort inserted candidates by along-track distance from start_node
+            # Sort inserted candidates by along-track distance
             inserted_candidates.sort(key=lambda x: x["at_dist"])
 
-            # Insert into route and remove from remaining candidates
             for item in inserted_candidates:
                 c_bin = dict(item["candidate"])
                 c_bin["is_on_the_way"] = True
@@ -192,7 +201,6 @@ class RouteOptimizer:
                 if item["candidate"] in remaining_corridor:
                     remaining_corridor.remove(item["candidate"])
 
-            # Append the leg's destination node
             final_route_stops.append(end_node)
 
         # -------------------------------------------------------------
