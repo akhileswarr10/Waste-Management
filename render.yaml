@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: wasteflow-api
+    env: python
+    region: oregon
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn backend.app:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+      - key: FLASK_DEBUG
+        value: "False"
+      - key: DEPOT_LATITUDE
+        value: "10.0150"
+      - key: DEPOT_LONGITUDE
+        value: "76.3450"
