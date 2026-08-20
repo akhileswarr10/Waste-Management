@@ -13,6 +13,51 @@ from backend.services.simulation_engine import SimulationEngine
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})
 
+# ---------------- AUTHENTICATION ENDPOINTS ----------------
+@app.route("/api/auth/login", methods=["POST"])
+def auth_login():
+    """
+    Authenticates Admin & Driver credentials:
+    - username: admin / pass: admin -> role: admin
+    - username: driver / pass: driver -> role: driver
+    """
+    data = request.get_json() or {}
+    username = (data.get("username") or "").strip().lower()
+    password = (data.get("password") or "").strip()
+
+    if username == "admin" and password == "admin":
+        return jsonify({
+            "status": "success",
+            "message": "Authenticated as Operations Administrator",
+            "user": {
+                "id": "11111111-1111-1111-1111-111111111111",
+                "username": "admin",
+                "role": "admin",
+                "name": "Chief Operations Admin",
+                "badge": "Admin Hub",
+                "email": "admin@wasteflow.io"
+            }
+        })
+    elif username == "driver" and password == "driver":
+        return jsonify({
+            "status": "success",
+            "message": "Authenticated as Municipal Fleet Driver",
+            "user": {
+                "id": "22222222-2222-2222-2222-222222222222",
+                "username": "driver",
+                "role": "driver",
+                "name": "Kochi Metro Fleet Driver",
+                "badge": "Driver Terminal",
+                "email": "driver@wasteflow.io",
+                "assigned_vehicle": "Truck #KL-07-AW-4021"
+            }
+        })
+    else:
+        return jsonify({
+            "status": "error",
+            "message": "Invalid username or password. Please use admin/admin or driver/driver."
+        }), 401
+
 # ---------------- ROOT & HEALTH ----------------
 @app.route("/", methods=["GET"])
 def index():

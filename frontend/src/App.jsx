@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Navbar from './components/Navbar';
+import LoginPage from './components/LoginPage';
 import KPICards from './components/KPICards';
 import SimulationToolbar from './components/SimulationToolbar';
 import LeafletMap from './components/LeafletMap';
@@ -9,13 +10,43 @@ import { API_BASE_URL } from './supabase';
 import { Layers, Map, List, Navigation, ShieldCheck, CheckCircle2, AlertTriangle, RefreshCw } from 'lucide-react';
 
 export default function App() {
-  const [activeRole, setActiveRole] = useState('admin'); // 'admin' or 'driver'
+  const [currentUser, setCurrentUser] = useState(() => {
+    try {
+      const saved = localStorage.getItem('wasteflow_user');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  const [activeRole, setActiveRole] = useState(() => {
+    try {
+      const saved = localStorage.getItem('wasteflow_user');
+      return saved ? (JSON.parse(saved).role || 'admin') : 'admin';
+    } catch {
+      return 'admin';
+    }
+  });
+
   const [activeTab, setActiveTab] = useState('map');      // 'map', 'table', 'route'
   const [loading, setLoading] = useState(true);
   const [advancing, setAdvancing] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [collectingBinId, setCollectingBinId] = useState(null);
   const [toastMessage, setToastMessage] = useState(null);
+
+  const handleLoginSuccess = (user) => {
+    localStorage.setItem('wasteflow_user', JSON.stringify(user));
+    setCurrentUser(user);
+    setActiveRole(user.role || 'admin');
+    showToast(`Welcome back, ${user.name}! Accessing ${user.role === 'admin' ? 'Admin Hub' : 'Driver Terminal'}.`);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('wasteflow_user');
+    setCurrentUser(null);
+    showToast('Logged out of session.');
+  };
 
   // Core Data States
   const [virtualTime, setVirtualTime] = useState(null);
@@ -160,6 +191,10 @@ export default function App() {
   const routeStops = routeData?.stops || [];
   const polylineCoords = routeData?.polyline_coordinates || [];
 
+  if (!currentUser) {
+    return <LoginPage onLoginSuccess={handleLoginSuccess} />;
+  }
+
   return (
     <div style={{ paddingBottom: '32px' }}>
       {/* Navbar */}
@@ -167,10 +202,10 @@ export default function App() {
         virtualTime={virtualTime}
         activeRole={activeRole}
         setActiveRole={setActiveRole}
-        activeView={activeRole}
-        setActiveView={setActiveRole}
         onRefresh={() => fetchData()}
         loading={loading}
+        currentUser={currentUser}
+        onLogout={handleLogout}
       />
 
       {/* Toast Notification */}
