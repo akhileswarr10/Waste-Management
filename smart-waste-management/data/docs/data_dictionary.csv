@@ -1,0 +1,6 @@
+column,meaning,rule
+target_fill_level_6h_pct,Natural fill after next 6h,Excludes future collection/reset events
+target_overflow_6h,Natural 6h fill >= 100%,Secondary classification target
+sensor_fill_level_pct,Observed current fill,Noisy current-state input
+hours_since_collection,Past operational history,Allowed model feature
+collection_logs,Actual simulated collection events,Used by operational/scheduling layer

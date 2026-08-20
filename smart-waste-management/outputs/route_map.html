@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html>
+<head>
+    
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.js"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Leaflet.awesome-markers/2.0.2/leaflet.awesome-markers.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/css/bootstrap.min.css"/>
+    <link rel="stylesheet" href="https://netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap-glyphicons.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.2.0/css/all.min.css"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/Leaflet.awesome-markers/2.0.2/leaflet.awesome-markers.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/python-visualization/folium/folium/templates/leaflet.awesome.rotate.min.css"/>
+    
+            <meta name="viewport" content="width=device-width,
+                initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+            <style>
+                #map_b0b5099c544c1be4b8673586eaa4b9a6 {
+                    position: relative;
+                    width: 100.0%;
+                    height: 100.0%;
+                    left: 0.0%;
+                    top: 0.0%;
+                }
+                .leaflet-container { font-size: 1rem; }
+            </style>
+
+            <style>html, body {
+                width: 100%;
+                height: 100%;
+                margin: 0;
+                padding: 0;
+            }
+            </style>
+
+            <style>#map {
+                position:absolute;
+                top:0;
+                bottom:0;
+                right:0;
+                left:0;
+                }
+            </style>
+
+            <script>
+                L_NO_TOUCH = false;
+                L_DISABLE_3D = false;
+            </script>
+
+        
+    <script src="https://cdn.jsdelivr.net/npm/leaflet-textpath@1.2.3/leaflet.textpath.min.js"></script>
+</head>
+<body>
+    
+    
+<div style="
+    position: fixed;
+    bottom: 30px;
+    left: 30px;
+    width: 220px;
+    z-index: 9999;
+    background-color: white;
+    border: 2px solid grey;
+    border-radius: 8px;
+    padding: 12px;
+    font-size: 14px;
+">
+
+<b>Waste Bin Risk</b>
+
+<br><br>
+
+<span style="
+    color:red;
+    font-size:18px;
+">●</span>
+Emergency
+
+<br>
+
+<span style="
+    color:orange;
+    font-size:18px;
+">●</span>
+High
+
+<br>
+
+<span style="
+    color:blue;
+    font-size:18px;
+">●</span>
+Medium
+
+<br>
+
+<span style="
+    color:green;
+    font-size:18px;
+">●</span>
+Low
+
+<br><br>
+
+<b>Route Lines</b>
+
+<br>
+
+Each color represents a truck.
+
+</div>
+    
+<div style="
+    position: fixed;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 9999;
+    background-color: white;
+    padding: 10px 20px;
+    border: 2px solid #444;
+    border-radius: 8px;
+    font-family: Arial;
+    font-size: 18px;
+    font-weight: bold;
+">
+
+Smart Waste Management
+<br>
+
+<span style="
+    font-size: 13px;
+    font-weight: normal;
+">
+
+AI-Powered Collection Route
+
+</span>
+
+</div>
+    
+            <div class="folium-map" id="map_b0b5099c544c1be4b8673586eaa4b9a6" ></div>
+        
+</body>
+<script>
+    
+    
+            var map_b0b5099c544c1be4b8673586eaa4b9a6 = L.map(
+                "map_b0b5099c544c1be4b8673586eaa4b9a6",
+                {
+                    center: [10.013309841247453, 76.33194676828182],
+                    crs: L.CRS.EPSG3857,
+                    ...{
+  "zoom": 13,
+  "zoomControl": true,
+  "preferCanvas": false,
+}
+
+                }
+            );
+            L.control.scale().addTo(map_b0b5099c544c1be4b8673586eaa4b9a6);
+
+            
+
+        
+    
+            var tile_layer_8397bda72f4093f6932a34514104004c = L.tileLayer(
+                "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+                {
+  "minZoom": 0,
+  "maxZoom": 19,
+  "maxNativeZoom": 19,
+  "noWrap": false,
+  "attribution": "\u0026copy; \u003ca href=\"https://www.openstreetmap.org/copyright\"\u003eOpenStreetMap\u003c/a\u003e contributors",
+  "subdomains": "abc",
+  "detectRetina": false,
+  "tms": false,
+  "opacity": 1,
+}
+
+            );
+        
+    
+            tile_layer_8397bda72f4093f6932a34514104004c.addTo(map_b0b5099c544c1be4b8673586eaa4b9a6);
+        
+    
+            var feature_group_9de0b2a56b30ae795213ced51e11370e = L.featureGroup(
+                {
+}
+            );
+        
+    
+            var poly_line_9fe95c87a412bdece3eed30e2478be4c = L.polyline(
+                [[10.017822144809424, 76.36145549333565], [10.01816675433942, 76.36112171818226], [10.030794801572934, 76.3441801568611], [10.013467056015951, 76.33081301410151], [10.003339643108518, 76.2964815887383], [9.99626864763848, 76.29762863847215]],
+                {"bubblingMouseEvents": true, "color": "blue", "dashArray": null, "dashOffset": null, "fill": false, "fillColor": "blue", "fillOpacity": 0.2, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "noClip": false, "opacity": 0.8, "smoothFactor": 1.0, "stroke": true, "weight": 5}
+            ).addTo(feature_group_9de0b2a56b30ae795213ced51e11370e);
+        
+    
+            poly_line_9fe95c87a412bdece3eed30e2478be4c.bindTooltip(
+                `<div>
+                     Truck T04 route
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var poly_line_d7e21349ee27ab9932ecb0064c1788be = L.polyline(
+                [[10.017822144809424, 76.36145549333565], [10.01816675433942, 76.36112171818226], [10.030794801572934, 76.3441801568611], [10.013467056015951, 76.33081301410151], [10.003339643108518, 76.2964815887383], [9.99626864763848, 76.29762863847215]],
+                {"bubblingMouseEvents": true, "color": "blue", "dashArray": null, "dashOffset": null, "fill": false, "fillColor": "blue", "fillOpacity": 0.2, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "noClip": false, "opacity": 0.0, "smoothFactor": 1.0, "stroke": true, "weight": 2}
+            ).addTo(feature_group_9de0b2a56b30ae795213ced51e11370e);
+        
+    
+            poly_line_d7e21349ee27ab9932ecb0064c1788be.setText(
+                "\u27a4    ",
+                {
+  "repeat": true,
+  "center": false,
+  "below": false,
+  "offset": 7,
+  "orientation": 0,
+  "attributes": {
+  "fill": "blue",
+  "font-weight": "bold",
+  "font-size": "16",
+},
+}
+            );
+        
+    
+            var marker_034977d32ee309ac791c5b05575d8fb0 = L.marker(
+                [10.017822144809424, 76.36145549333565],
+                {
+}
+            ).addTo(feature_group_9de0b2a56b30ae795213ced51e11370e);
+        
+    
+            var icon_e7f03c2ab696bc693cc0221914259656 = L.AwesomeMarkers.icon(
+                {
+  "markerColor": "blue",
+  "iconColor": "white",
+  "icon": "trash",
+  "prefix": "fa",
+  "extraClasses": "fa-rotate-0",
+}
+            );
+        
+    
+        var popup_9c60f45033f2601162fe245a129afa91 = L.popup({
+  "maxWidth": 350,
+});
+
+        
+            
+                var html_fdde174f815e162e30394ce52a1750ce = $(`<div id="html_fdde174f815e162e30394ce52a1750ce" style="width: 100.0%; height: 100.0%;">         <div style="             width: 300px;             font-family: Arial;         ">              <h3 style="margin-bottom: 5px;">                 🗑️ Bin B0019             </h3>              <hr>              <b>Truck:</b>             T04             <br>              <b>Route Stop:</b>             1             <br>              <b>Zone:</b>             Z4             <br>              <b>Risk Level:</b>             MEDIUM             <br>              <b>Priority Score:</b>             40.91             <br>              <b>Current Sensor Fill:</b>             72.6%             <br>              <b>Predicted Fill:</b>             73.9%             <br>              <b>Raw ML Prediction:</b>             73.9%             <br>              <b>Predicted Overflow:</b>             0.0%             <br>              <b>Overflow Probability:</b>             0.0%             <br>              <b>Route Decision:</b>             OPPORTUNISTIC_ON_WAY             <br>              <br>              <b>Why this stop?</b>             <br>              Collected opportunistically while approaching another priority bin.          </div>         </div>`)[0];
+                popup_9c60f45033f2601162fe245a129afa91.setContent(html_fdde174f815e162e30394ce52a1750ce);
+            
+        
+
+        marker_034977d32ee309ac791c5b05575d8fb0.bindPopup(popup_9c60f45033f2601162fe245a129afa91)
+        ;
+
+        
+    
+    
+            marker_034977d32ee309ac791c5b05575d8fb0.bindTooltip(
+                `<div>
+                     Stop 1 | B0019 | MEDIUM
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+                marker_034977d32ee309ac791c5b05575d8fb0.setIcon(icon_e7f03c2ab696bc693cc0221914259656);
+            
+    
+            var marker_3302150f71d636351977f365b6ff7d95 = L.marker(
+                [10.01816675433942, 76.36112171818226],
+                {
+}
+            ).addTo(feature_group_9de0b2a56b30ae795213ced51e11370e);
+        
+    
+            var icon_08debeea02dceeb2d6fedba0c8c633e7 = L.AwesomeMarkers.icon(
+                {
+  "markerColor": "red",
+  "iconColor": "white",
+  "icon": "trash",
+  "prefix": "fa",
+  "extraClasses": "fa-rotate-0",
+}
+            );
+        
+    
+        var popup_ae16a5034515d03babd10dbb2a07ba6e = L.popup({
+  "maxWidth": 350,
+});
+
+        
+            
+                var html_da2067a8f27956357a00bb425adcd747 = $(`<div id="html_da2067a8f27956357a00bb425adcd747" style="width: 100.0%; height: 100.0%;">         <div style="             width: 300px;             font-family: Arial;         ">              <h3 style="margin-bottom: 5px;">                 🗑️ Bin B0018             </h3>              <hr>              <b>Truck:</b>             T04             <br>              <b>Route Stop:</b>             2             <br>              <b>Zone:</b>             Z4             <br>              <b>Risk Level:</b>             EMERGENCY             <br>              <b>Priority Score:</b>             95.09             <br>              <b>Current Sensor Fill:</b>             98.2%             <br>              <b>Predicted Fill:</b>             100.0%             <br>              <b>Raw ML Prediction:</b>             101.4%             <br>              <b>Predicted Overflow:</b>             1.4%             <br>              <b>Overflow Probability:</b>             98.0%             <br>              <b>Route Decision:</b>             EMERGENCY_PRIORITY             <br>              <br>              <b>Why this stop?</b>             <br>              Emergency collection priority.          </div>         </div>`)[0];
+                popup_ae16a5034515d03babd10dbb2a07ba6e.setContent(html_da2067a8f27956357a00bb425adcd747);
+            
+        
+
+        marker_3302150f71d636351977f365b6ff7d95.bindPopup(popup_ae16a5034515d03babd10dbb2a07ba6e)
+        ;
+
+        
+    
+    
+            marker_3302150f71d636351977f365b6ff7d95.bindTooltip(
+                `<div>
+                     Stop 2 | B0018 | EMERGENCY
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+                marker_3302150f71d636351977f365b6ff7d95.setIcon(icon_08debeea02dceeb2d6fedba0c8c633e7);
+            
+    
+            var marker_50984a6f3865228c9b6d8a19580f3cce = L.marker(
+                [10.030794801572934, 76.3441801568611],
+                {
+}
+            ).addTo(feature_group_9de0b2a56b30ae795213ced51e11370e);
+        
+    
+            var icon_8d6d7d644e39a72416ac34e41eece294 = L.AwesomeMarkers.icon(
+                {
+  "markerColor": "orange",
+  "iconColor": "white",
+  "icon": "trash",
+  "prefix": "fa",
+  "extraClasses": "fa-rotate-0",
+}
+            );
+        
+    
+        var popup_f52a86b5c4b496aabbee3c951f96c297 = L.popup({
+  "maxWidth": 350,
+});
+
+        
+            
+                var html_365b0f706dac0bf69a8e2c631a638469 = $(`<div id="html_365b0f706dac0bf69a8e2c631a638469" style="width: 100.0%; height: 100.0%;">         <div style="             width: 300px;             font-family: Arial;         ">              <h3 style="margin-bottom: 5px;">                 🗑️ Bin B0007             </h3>              <hr>              <b>Truck:</b>             T04             <br>              <b>Route Stop:</b>             3             <br>              <b>Zone:</b>             Z2             <br>              <b>Risk Level:</b>             HIGH             <br>              <b>Priority Score:</b>             48.47             <br>              <b>Current Sensor Fill:</b>             86.5%             <br>              <b>Predicted Fill:</b>             87.7%             <br>              <b>Raw ML Prediction:</b>             87.7%             <br>              <b>Predicted Overflow:</b>             0.0%             <br>              <b>Overflow Probability:</b>             0.0%             <br>              <b>Route Decision:</b>             COST_OPTIMIZED             <br>              <br>              <b>Why this stop?</b>             <br>              Selected for route efficiency.          </div>         </div>`)[0];
+                popup_f52a86b5c4b496aabbee3c951f96c297.setContent(html_365b0f706dac0bf69a8e2c631a638469);
+            
+        
+
+        marker_50984a6f3865228c9b6d8a19580f3cce.bindPopup(popup_f52a86b5c4b496aabbee3c951f96c297)
+        ;
+
+        
+    
+    
+            marker_50984a6f3865228c9b6d8a19580f3cce.bindTooltip(
+                `<div>
+                     Stop 3 | B0007 | HIGH
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+                marker_50984a6f3865228c9b6d8a19580f3cce.setIcon(icon_8d6d7d644e39a72416ac34e41eece294);
+            
+    
+            var marker_891a7aff07042567143f599cc568f5ed = L.marker(
+                [10.013467056015951, 76.33081301410151],
+                {
+}
+            ).addTo(feature_group_9de0b2a56b30ae795213ced51e11370e);
+        
+    
+            var icon_120a81770aede96251b94126618a46f7 = L.AwesomeMarkers.icon(
+                {
+  "markerColor": "blue",
+  "iconColor": "white",
+  "icon": "trash",
+  "prefix": "fa",
+  "extraClasses": "fa-rotate-0",
+}
+            );
+        
+    
+        var popup_6600ecccc40b635dc0984295c0d1e697 = L.popup({
+  "maxWidth": 350,
+});
+
+        
+            
+                var html_e76dd6209e588743f91662e8807b8dee = $(`<div id="html_e76dd6209e588743f91662e8807b8dee" style="width: 100.0%; height: 100.0%;">         <div style="             width: 300px;             font-family: Arial;         ">              <h3 style="margin-bottom: 5px;">                 🗑️ Bin B0020             </h3>              <hr>              <b>Truck:</b>             T04             <br>              <b>Route Stop:</b>             4             <br>              <b>Zone:</b>             Z1             <br>              <b>Risk Level:</b>             MEDIUM             <br>              <b>Priority Score:</b>             34.46             <br>              <b>Current Sensor Fill:</b>             58.9%             <br>              <b>Predicted Fill:</b>             61.7%             <br>              <b>Raw ML Prediction:</b>             61.7%             <br>              <b>Predicted Overflow:</b>             0.0%             <br>              <b>Overflow Probability:</b>             0.0%             <br>              <b>Route Decision:</b>             COST_OPTIMIZED             <br>              <br>              <b>Why this stop?</b>             <br>              Selected for route efficiency.          </div>         </div>`)[0];
+                popup_6600ecccc40b635dc0984295c0d1e697.setContent(html_e76dd6209e588743f91662e8807b8dee);
+            
+        
+
+        marker_891a7aff07042567143f599cc568f5ed.bindPopup(popup_6600ecccc40b635dc0984295c0d1e697)
+        ;
+
+        
+    
+    
+            marker_891a7aff07042567143f599cc568f5ed.bindTooltip(
+                `<div>
+                     Stop 4 | B0020 | MEDIUM
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+                marker_891a7aff07042567143f599cc568f5ed.setIcon(icon_120a81770aede96251b94126618a46f7);
+            
+    
+            var marker_52518410ca3656e1c6f733189ce61261 = L.marker(
+                [10.003339643108518, 76.2964815887383],
+                {
+}
+            ).addTo(feature_group_9de0b2a56b30ae795213ced51e11370e);
+        
+    
+            var icon_dd913e8e25726a275ad78f300c7c3e32 = L.AwesomeMarkers.icon(
+                {
+  "markerColor": "blue",
+  "iconColor": "white",
+  "icon": "trash",
+  "prefix": "fa",
+  "extraClasses": "fa-rotate-0",
+}
+            );
+        
+    
+        var popup_5e24338509d9f9937444128761d971da = L.popup({
+  "maxWidth": 350,
+});
+
+        
+            
+                var html_888c28cbe05277dc6b004e4b8c112be3 = $(`<div id="html_888c28cbe05277dc6b004e4b8c112be3" style="width: 100.0%; height: 100.0%;">         <div style="             width: 300px;             font-family: Arial;         ">              <h3 style="margin-bottom: 5px;">                 🗑️ Bin B0014             </h3>              <hr>              <b>Truck:</b>             T04             <br>              <b>Route Stop:</b>             5             <br>              <b>Zone:</b>             Z5             <br>              <b>Risk Level:</b>             MEDIUM             <br>              <b>Priority Score:</b>             36.94             <br>              <b>Current Sensor Fill:</b>             63.4%             <br>              <b>Predicted Fill:</b>             66.2%             <br>              <b>Raw ML Prediction:</b>             66.2%             <br>              <b>Predicted Overflow:</b>             0.0%             <br>              <b>Overflow Probability:</b>             0.0%             <br>              <b>Route Decision:</b>             COST_OPTIMIZED             <br>              <br>              <b>Why this stop?</b>             <br>              Selected for route efficiency.          </div>         </div>`)[0];
+                popup_5e24338509d9f9937444128761d971da.setContent(html_888c28cbe05277dc6b004e4b8c112be3);
+            
+        
+
+        marker_52518410ca3656e1c6f733189ce61261.bindPopup(popup_5e24338509d9f9937444128761d971da)
+        ;
+
+        
+    
+    
+            marker_52518410ca3656e1c6f733189ce61261.bindTooltip(
+                `<div>
+                     Stop 5 | B0014 | MEDIUM
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+                marker_52518410ca3656e1c6f733189ce61261.setIcon(icon_dd913e8e25726a275ad78f300c7c3e32);
+            
+    
+            var marker_4f2711a85f6cc00f216490e1ec861eef = L.marker(
+                [9.99626864763848, 76.29762863847215],
+                {
+}
+            ).addTo(feature_group_9de0b2a56b30ae795213ced51e11370e);
+        
+    
+            var icon_f461555a2e1a3e9945ba153643cd532c = L.AwesomeMarkers.icon(
+                {
+  "markerColor": "blue",
+  "iconColor": "white",
+  "icon": "trash",
+  "prefix": "fa",
+  "extraClasses": "fa-rotate-0",
+}
+            );
+        
+    
+        var popup_c001bc785bc448e0714804a3d83b8ef6 = L.popup({
+  "maxWidth": 350,
+});
+
+        
+            
+                var html_6b706c1b1fdebb488acb69e40da9019b = $(`<div id="html_6b706c1b1fdebb488acb69e40da9019b" style="width: 100.0%; height: 100.0%;">         <div style="             width: 300px;             font-family: Arial;         ">              <h3 style="margin-bottom: 5px;">                 🗑️ Bin B0002             </h3>              <hr>              <b>Truck:</b>             T04             <br>              <b>Route Stop:</b>             6             <br>              <b>Zone:</b>             Z5             <br>              <b>Risk Level:</b>             MEDIUM             <br>              <b>Priority Score:</b>             40.91             <br>              <b>Current Sensor Fill:</b>             71.1%             <br>              <b>Predicted Fill:</b>             73.6%             <br>              <b>Raw ML Prediction:</b>             73.6%             <br>              <b>Predicted Overflow:</b>             0.0%             <br>              <b>Overflow Probability:</b>             0.0%             <br>              <b>Route Decision:</b>             COST_OPTIMIZED             <br>              <br>              <b>Why this stop?</b>             <br>              Selected for route efficiency.          </div>         </div>`)[0];
+                popup_c001bc785bc448e0714804a3d83b8ef6.setContent(html_6b706c1b1fdebb488acb69e40da9019b);
+            
+        
+
+        marker_4f2711a85f6cc00f216490e1ec861eef.bindPopup(popup_c001bc785bc448e0714804a3d83b8ef6)
+        ;
+
+        
+    
+    
+            marker_4f2711a85f6cc00f216490e1ec861eef.bindTooltip(
+                `<div>
+                     Stop 6 | B0002 | MEDIUM
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+                marker_4f2711a85f6cc00f216490e1ec861eef.setIcon(icon_f461555a2e1a3e9945ba153643cd532c);
+            
+    
+            feature_group_9de0b2a56b30ae795213ced51e11370e.addTo(map_b0b5099c544c1be4b8673586eaa4b9a6);
+        
+    
+            var layer_control_1d5c5f49665c0dc49a87b99baebe87a1_layers = {
+                base_layers : {
+                    "openstreetmap" : tile_layer_8397bda72f4093f6932a34514104004c,
+                },
+                overlays :  {
+                    "Truck T04" : feature_group_9de0b2a56b30ae795213ced51e11370e,
+                },
+            };
+            let layer_control_1d5c5f49665c0dc49a87b99baebe87a1 = L.control.layers(
+                layer_control_1d5c5f49665c0dc49a87b99baebe87a1_layers.base_layers,
+                layer_control_1d5c5f49665c0dc49a87b99baebe87a1_layers.overlays,
+                {
+  "position": "topright",
+  "collapsed": false,
+  "autoZIndex": true,
+}
+            ).addTo(map_b0b5099c544c1be4b8673586eaa4b9a6);
+
+        
+</script>
+</html>

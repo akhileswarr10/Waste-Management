@@ -1,0 +1,10 @@
+{
+  "seed": 42,
+  "bins": 20,
+  "trucks": 10,
+  "period": "2025-08-01 through 2026-07-31",
+  "frequency": "hourly",
+  "primary_target": "target_fill_level_6h_pct",
+  "target_definition": "current true fill + future natural waste generation; future collection resets excluded",
+  "split": "chronological 70/15/15"
+}

@@ -1,0 +1,15 @@
+event_date,event_name,event_scope,is_public_holiday
+2025-08-15,Independence_Day,Public_Holiday,1
+2025-08-27,Festival,Public_Holiday,1
+2025-09-05,Festival,Public_Holiday,1
+2025-10-02,National_Holiday,Public_Holiday,1
+2025-10-20,Festival,Public_Holiday,1
+2025-11-01,Regional_Holiday,Public_Holiday,1
+2025-12-25,Christmas,Public_Holiday,1
+2026-01-01,New_Year,Public_Holiday,1
+2026-01-26,Republic_Day,Public_Holiday,1
+2026-03-08,Festival,Public_Holiday,1
+2026-04-14,Regional_Holiday,Public_Holiday,1
+2026-05-01,Labour_Day,Public_Holiday,1
+2026-06-15,Festival,Public_Holiday,1
+2026-07-10,Festival,Public_Holiday,1
