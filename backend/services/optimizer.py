@@ -72,18 +72,13 @@ class RouteOptimizer:
     @classmethod
     def generate_optimized_route(cls) -> Dict[str, Any]:
         """
-        Executes strict Optimal / Greedy Routing with Geodesic Corridor Detection:
-        1. Identifies Primary Critical Targets: ONLY bins with Current Fill >= 80.0%.
-        2. Identifies On-The-Way Candidates: Bins with 50.0% <= Current Fill < 80.0%.
-        3. Constructs the shortest optimal loop connecting all Primary Critical Targets starting and ending at Depot.
-        4. Injects on-the-way candidates ONLY if they physically lie directly in the corridor between two consecutive stops:
-           - Along-track projection: 0.05 * seg_len <= at_dist <= 0.95 * seg_len
-           - Perpendicular cross-track distance: xt_dist <= 0.40 km (400m)
-           - Detour penalty: detour <= 0.40 km (400m)
-        5. Computes exact route metrics, fuel savings, and stop sequence.
+        Executes Greedy Nearest-Neighbor with corridor detection:
+        1. Identifies Primary Targets (Fill >= 80% or Tier IN [HIGH, CRITICAL, EMERGENCY]).
+        2. Identifies On-The-Way Candidates (Fill >= 50% and not in primary targets).
+        3. Constructs greedy nearest path connecting all primary targets starting & ending at Depot.
+        4. Injects on-the-way bins that lie in the corridor along each leg.
+        5. Computes route metrics and fuel savings.
         """
-        import itertools
-
         depot_lat = Config.DEPOT_LATITUDE
         depot_lon = Config.DEPOT_LONGITUDE
         depot_pos = (depot_lat, depot_lon)
@@ -96,52 +91,48 @@ class RouteOptimizer:
         if not predictions:
             return {"status": "error", "message": "No bins found to route."}
 
-        # 1. Primary Critical Targets: ONLY bins with current fill >= 80.0%
-        primary_targets = [p for p in predictions if float(p.get("current_fill_level_pct", 0.0)) >= 80.0]
-        
-        # 2. On-the-way Corridor Candidates: 50% <= fill < 80%
-        corridor_candidates = [
-            p for p in predictions 
-            if 50.0 <= float(p.get("current_fill_level_pct", 0.0)) < 80.0
-        ]
+        # -------------------------------------------------------------
+        # STEP 1: Segregate Critical Primary Targets & Corridor Candidates
+        # -------------------------------------------------------------
+        # Primary Targets: Fill >= 80% or Critical/Emergency
+        # Corridor Candidates: 50% <= Fill < 80%
+        primary_targets = []
+        corridor_candidates = []
 
-        # Fallback if no bins are >= 80%: pick highest available
+        for p in predictions:
+            curr_fill = float(p["current_fill_level_pct"])
+            tier = p.get("urgency_tier", "LOW")
+            if curr_fill >= 80.0 or tier in ("EMERGENCY", "CRITICAL"):
+                primary_targets.append(p)
+            elif curr_fill >= 50.0:
+                corridor_candidates.append(p)
+
+        # Fallback: if no bins >= 80%, take top highest fill bins
         if not primary_targets:
-            sorted_by_fill = sorted(predictions, key=lambda x: float(x.get("current_fill_level_pct", 0.0)), reverse=True)
-            primary_targets = [p for p in sorted_by_fill if float(p.get("current_fill_level_pct", 0.0)) >= 60.0]
+            sorted_by_fill = sorted(predictions, key=lambda x: float(x["current_fill_level_pct"]), reverse=True)
+            primary_targets = [b for b in sorted_by_fill if float(b["current_fill_level_pct"]) >= 60.0][:3]
             if not primary_targets:
-                primary_targets = sorted_by_fill[:min(3, len(sorted_by_fill))]
-            corridor_candidates = [p for p in predictions if p not in primary_targets and float(p.get("current_fill_level_pct", 0.0)) >= 40.0]
+                primary_targets = sorted_by_fill[:1]
+            corridor_candidates = [p for p in predictions if p not in primary_targets and float(p["current_fill_level_pct"]) >= 50.0]
 
         # -------------------------------------------------------------
-        # STEP 1: Find Shortest Tour Connecting All Primary Targets
+        # STEP 2: Greedy Nearest-Neighbor Tour for Primary Targets
         # -------------------------------------------------------------
-        if len(primary_targets) <= 8:
-            # Exact TSP via permutations for up to 8 targets (<= 40,320 checks in <1ms)
-            best_dist = float('inf')
-            best_order = primary_targets
-            for perm in itertools.permutations(primary_targets):
-                d = haversine_distance(depot_pos[0], depot_pos[1], perm[0]["latitude"], perm[0]["longitude"])
-                for i in range(len(perm) - 1):
-                    d += haversine_distance(perm[i]["latitude"], perm[i]["longitude"], perm[i+1]["latitude"], perm[i+1]["longitude"])
-                d += haversine_distance(perm[-1]["latitude"], perm[-1]["longitude"], depot_pos[0], depot_pos[1])
-                if d < best_dist:
-                    best_dist = d
-                    best_order = list(perm)
-            primary_path = best_order
-        else:
-            # Nearest Neighbor greedy heuristic + 2-opt refinement for larger sets
-            unvisited = list(primary_targets)
-            primary_path = []
-            curr = depot_pos
-            while unvisited:
-                nearest = min(unvisited, key=lambda b: haversine_distance(curr[0], curr[1], b["latitude"], b["longitude"]))
-                primary_path.append(nearest)
-                unvisited.remove(nearest)
-                curr = (nearest["latitude"], nearest["longitude"])
+        unvisited_primary = list(primary_targets)
+        primary_path: List[Dict[str, Any]] = []
+        current_loc = depot_pos
+
+        while unvisited_primary:
+            nearest_bin = min(
+                unvisited_primary,
+                key=lambda b: haversine_distance(current_loc[0], current_loc[1], b["latitude"], b["longitude"])
+            )
+            primary_path.append(nearest_bin)
+            unvisited_primary.remove(nearest_bin)
+            current_loc = (nearest_bin["latitude"], nearest_bin["longitude"])
 
         # -------------------------------------------------------------
-        # STEP 2: Strict Corridor Injection Along Each Leg
+        # STEP 3: Inject On-The-Way Corridor Bins (50% - 79%) Strictly Between Consecutive Stops
         # -------------------------------------------------------------
         depot_node_start = {
             "is_depot": True,
@@ -173,41 +164,50 @@ class RouteOptimizer:
             e_lat, e_lon = end_node["latitude"], end_node["longitude"]
             seg_len = haversine_distance(s_lat, s_lon, e_lat, e_lon)
 
-            # Check corridor candidates between start_node and end_node
-            inserted_candidates = []
-            if seg_len > 0.1: # Only evaluate if non-zero segment length
-                for cand in list(remaining_corridor):
-                    c_lat, c_lon = cand["latitude"], cand["longitude"]
-                    xt_dist, at_dist = cross_track_distance(s_lat, s_lon, e_lat, e_lon, c_lat, c_lon)
-                    detour = cls.calculate_detour((s_lat, s_lon), (c_lat, c_lon), (e_lat, e_lon))
+            # Strict Bounding Box around segment with small epsilon (~300m)
+            min_lat = min(s_lat, e_lat) - 0.003
+            max_lat = max(s_lat, e_lat) + 0.003
+            min_lon = min(s_lon, e_lon) - 0.003
+            max_lon = max(s_lon, e_lon) + 0.003
 
-                    # Candidate MUST lie strictly along the path AND within narrow corridor AND with minimal detour
-                    if (0.05 * seg_len <= at_dist <= 0.95 * seg_len) and (xt_dist <= 0.40) and (detour <= 0.40):
-                        inserted_candidates.append({
-                            "candidate": cand,
-                            "at_dist": at_dist,
-                            "detour": detour,
-                            "xt_dist": xt_dist
-                        })
+            leg_corridor_stops: List[Tuple[Dict[str, Any], float]] = []
 
-            # Sort inserted candidates by along-track distance
-            inserted_candidates.sort(key=lambda x: x["at_dist"])
+            for cand in list(remaining_corridor):
+                c_lat, c_lon = cand["latitude"], cand["longitude"]
 
-            for item in inserted_candidates:
-                c_bin = dict(item["candidate"])
-                c_bin["is_on_the_way"] = True
-                c_bin["corridor_detour_km"] = round(item["detour"], 2)
-                final_route_stops.append(c_bin)
-                if item["candidate"] in remaining_corridor:
-                    remaining_corridor.remove(item["candidate"])
+                # 1. Must lie inside the segment's geographical bounding box
+                if not (min_lat <= c_lat <= max_lat and min_lon <= c_lon <= max_lon):
+                    continue
 
+                # 2. Cross-track (perpendicular distance) and along-track progress
+                xt_dist, at_dist = cross_track_distance(s_lat, s_lon, e_lat, e_lon, c_lat, c_lon)
+                detour = cls.calculate_detour((s_lat, s_lon), (c_lat, c_lon), (e_lat, e_lon))
+
+                # Strict corridor constraints:
+                # - Must be between 15% and 85% of segment progress
+                # - Perpendicular cross-track distance <= 0.35 km (350 meters)
+                # - Extra detour penalty <= 0.35 km (350 meters)
+                if (0.15 * seg_len <= at_dist <= 0.85 * seg_len) and (xt_dist <= 0.35) and (detour <= 0.35):
+                    leg_corridor_stops.append((cand, at_dist))
+
+            # Sort inserted corridor bins strictly by along-track progress so vehicle moves forward
+            leg_corridor_stops.sort(key=lambda x: x[1])
+
+            for cand_bin, _ in leg_corridor_stops:
+                cand_copy = dict(cand_bin)
+                cand_copy["is_on_the_way"] = True
+                final_route_stops.append(cand_copy)
+                if cand_bin in remaining_corridor:
+                    remaining_corridor.remove(cand_bin)
+
+            # Append the leg's destination node
             final_route_stops.append(end_node)
 
         # -------------------------------------------------------------
-        # STEP 3: Format Stops, Cumulative Distance & Real Road Geometry
+        # STEP 4: Format Stops, Cumulative Distance & ETAs
         # -------------------------------------------------------------
         formatted_stops = []
-        direct_polyline_coords = []
+        polyline_coords = []
         cumulative_dist = 0.0
         cumulative_time = 0.0
         total_waste_liters = 0.0
@@ -225,107 +225,82 @@ class RouteOptimizer:
                 dist_from_prev = haversine_distance(prev["latitude"], prev["longitude"], stop["latitude"], stop["longitude"])
 
             cumulative_dist += dist_from_prev
-            # Travel time at 30 km/h + 5 min operational collection stop
-            travel_time_min = (dist_from_prev / 30.0) * 60.0
-            dwell_time_min = 0.0 if is_depot else 5.0
-            cumulative_time += (travel_time_min + dwell_time_min)
-
-            fill_pct = float(stop.get("current_fill_level_pct", 0.0))
-            cap = float(stop.get("bin_capacity_liters", 800.0))
-            waste_vol = (fill_pct / 100.0) * cap if not is_depot else 0.0
-            total_waste_liters += waste_vol
+            # Travel time at 30 km/h
+            travel_time_min = (dist_from_prev / AVERAGE_SPEED_KMPH) * 60.0
+            cumulative_time += travel_time_min
 
             if not is_depot:
                 stop_counter += 1
+                cumulative_time += SERVICE_TIME_MINUTES_PER_STOP
+                # Calculate estimated collected waste
+                cap = float(stop.get("bin_capacity_liters", 800.0))
+                fill = float(stop.get("current_fill_level_pct", 50.0))
+                waste_vol = cap * (fill / 100.0)
+                total_waste_liters += waste_vol
+
+                stop_type = "on_the_way_collection" if stop.get("is_on_the_way") else "primary_collection"
+            else:
+                stop_type = "depot_start" if is_start else "depot_return"
+
+            polyline_coords.append([round(stop["latitude"], 6), round(stop["longitude"], 6)])
 
             formatted_stops.append({
-                "stop_index": idx,
-                "display_index": stop_counter if not is_depot else ("DEPOT" if is_start else "DEPOT"),
-                "is_depot": is_depot,
-                "is_start": is_start,
-                "is_end": is_end,
+                "stop_number": 0 if is_start else (stop_counter if not is_depot else stop_counter + 1),
+                "type": stop_type,
                 "is_on_the_way": stop.get("is_on_the_way", False),
                 "bin_id": stop.get("bin_id"),
-                "name": stop.get("name") or stop.get("bin_name"),
-                "area_type": stop.get("area_type", "Industrial / Logistics"),
+                "name": stop.get("name", f"Bin {stop.get('bin_id')} ({stop.get('area_type', '')})"),
                 "latitude": round(stop["latitude"], 6),
                 "longitude": round(stop["longitude"], 6),
-                "current_fill_level_pct": fill_pct,
-                "predicted_fill_6h_pct": float(stop.get("predicted_fill_6h_pct", fill_pct)),
-                "urgency_tier": stop.get("urgency_tier", "CRITICAL" if not is_depot else "LOW"),
-                "priority_score": float(stop.get("priority_score", 0.0)),
-                "waste_liters": round(waste_vol, 1),
+                "locality": stop.get("locality", "Central"),
+                "collection_zone": stop.get("collection_zone", "-"),
+                "area_type": stop.get("area_type", "Depot"),
+                "current_fill_level_pct": stop.get("current_fill_level_pct", 0.0),
+                "predicted_fill_6h_pct": stop.get("predicted_fill_6h_pct", 0.0),
+                "priority_score": stop.get("priority_score", 0.0),
+                "urgency_tier": stop.get("urgency_tier", "DEPOT"),
                 "distance_from_prev_km": round(dist_from_prev, 2),
                 "cumulative_distance_km": round(cumulative_dist, 2),
                 "eta_minutes": round(cumulative_time, 1)
             })
 
-            direct_polyline_coords.append([round(stop["latitude"], 6), round(stop["longitude"], 6)])
-
         # -------------------------------------------------------------
-        # STEP 4: Fetch Exact Real-Road Geometry via OpenStreetMap Routing
+        # STEP 4: Cost & Efficiency Analytics
         # -------------------------------------------------------------
-        road_polyline_coords = cls.fetch_real_road_geometry(final_route_stops, direct_polyline_coords)
+        total_dist = round(cumulative_dist, 2)
+        total_duration = round(cumulative_time, 1)
 
-        # Baseline fixed static route = 42.5 km
-        baseline_fixed_km = 42.5
-        distance_saved = max(0.0, baseline_fixed_km - cumulative_dist)
-        fuel_saved_liters = (distance_saved / 100.0) * 27.65
-        savings_pct = (distance_saved / baseline_fixed_km) * 100.0 if baseline_fixed_km > 0 else 0.0
+        # Baseline comparison: Static fixed municipal route visiting all 20 bins
+        opt_fuel = total_dist * FUEL_CONSUMPTION_L_PER_KM
+        base_fuel = BASELINE_FIXED_ROUTE_KM * (FUEL_CONSUMPTION_L_PER_KM * 1.15)
+        fuel_saved_l = max(0.0, base_fuel - opt_fuel)
+        fuel_savings_pct = (fuel_saved_l / base_fuel) * 100.0 if base_fuel > 0 else 0.0
+        cost_saved_inr = fuel_saved_l * FUEL_PRICE_PER_LITER
+
+        primary_count = len(primary_path)
+        on_the_way_count = sum(1 for s in formatted_stops if s.get("is_on_the_way"))
 
         return {
             "status": "success",
+            "depot": {
+                "latitude": depot_lat,
+                "longitude": depot_lon,
+                "name": "Central Waste Operations Depot"
+            },
             "summary": {
                 "total_collection_stops": stop_counter,
-                "primary_stops_count": len([s for s in formatted_stops if not s["is_depot"] and not s["is_on_the_way"]]),
-                "on_the_way_stops_count": len([s for s in formatted_stops if not s["is_depot"] and s["is_on_the_way"]]),
-                "total_route_distance_km": round(cumulative_dist, 2),
-                "estimated_duration_minutes": round(cumulative_time, 1),
+                "primary_stops_count": primary_count,
+                "on_the_way_stops_count": on_the_way_count,
+                "total_route_distance_km": total_dist,
+                "estimated_duration_minutes": total_duration,
                 "total_waste_collected_liters": round(total_waste_liters, 1),
-                "baseline_fixed_route_km": baseline_fixed_km,
-                "distance_saved_km": round(distance_saved, 2),
-                "fuel_consumed_liters": round((cumulative_dist / 100.0) * 27.65, 2),
-                "fuel_saved_liters": round(fuel_saved_liters, 2),
-                "fuel_savings_pct": round(savings_pct, 1),
-                "estimated_cost_savings_inr": round(fuel_saved_liters * 100.0, 2)
+                "baseline_fixed_route_km": BASELINE_FIXED_ROUTE_KM,
+                "distance_saved_km": round(max(0.0, BASELINE_FIXED_ROUTE_KM - total_dist), 2),
+                "fuel_consumed_liters": round(opt_fuel, 2),
+                "fuel_saved_liters": round(fuel_saved_l, 2),
+                "fuel_savings_pct": round(fuel_savings_pct, 1),
+                "estimated_cost_savings_inr": round(cost_saved_inr, 2)
             },
             "stops": formatted_stops,
-            "depot": {"latitude": depot_lat, "longitude": depot_lon},
-            "polyline_coordinates": road_polyline_coords
+            "polyline_coordinates": polyline_coords
         }
-
-    @staticmethod
-    def fetch_real_road_geometry(stops: List[Dict[str, Any]], fallback_coords: List[List[float]]) -> List[List[float]]:
-        """
-        Fetches exact real-road GPS coordinates from OpenStreetMap / OSRM routing engine.
-        Follows real streets, road curves, roundabouts, and highways.
-        """
-        import requests
-        if len(stops) < 2:
-            return fallback_coords
-
-        coords_list = [f"{s['longitude']},{s['latitude']}" for s in stops]
-        coords_str = ";".join(coords_list)
-        
-        # Primary & Secondary OSM routing endpoints
-        endpoints = [
-            f"https://routing.openstreetmap.de/routed-car/route/v1/driving/{coords_str}?overview=full&geometries=geojson",
-            f"http://router.project-osrm.org/route/v1/driving/{coords_str}?overview=full&geometries=geojson"
-        ]
-
-        for url in endpoints:
-            try:
-                headers = {"User-Agent": "WasteFlowNavigator/1.0"}
-                res = requests.get(url, headers=headers, timeout=6)
-                if res.status_code == 200:
-                    data = res.json()
-                    routes = data.get("routes", [])
-                    if routes:
-                        geom = routes[0].get("geometry", {}).get("coordinates", [])
-                        if geom:
-                            # Convert [lon, lat] -> [lat, lon] for Leaflet
-                            return [[round(lat, 6), round(lon, 6)] for lon, lat in geom]
-            except Exception:
-                continue
-
-        return fallback_coords
