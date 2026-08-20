@@ -193,29 +193,40 @@ export default function LeafletMap({
           );
         })}
 
-        {/* Optimized Greedy Route Polyline with corridor glow */}
+        {/* Exact Real Road Polyline (snapped to street network) */}
         {showRoute && polylineCoordinates.length > 1 && (
           <>
-            {/* Outer Glow */}
+            {/* Road Casing / Border */}
             <Polyline
               positions={polylineCoordinates}
               pathOptions={{
-                color: '#6366f1',
+                color: '#1e1b4b',
                 weight: 8,
-                opacity: 0.35,
+                opacity: 0.9,
                 lineCap: 'round',
                 lineJoin: 'round'
               }}
             />
-            {/* Core Route Line */}
+            {/* Road Navigation Core */}
             <Polyline
               positions={polylineCoordinates}
               pathOptions={{
-                color: '#818cf8',
-                weight: 4,
+                color: '#6366f1',
+                weight: 5,
                 opacity: 0.95,
-                dashArray: '8, 8',
-                lineCap: 'round'
+                lineCap: 'round',
+                lineJoin: 'round'
+              }}
+            />
+            {/* Inner Direction Glow */}
+            <Polyline
+              positions={polylineCoordinates}
+              pathOptions={{
+                color: '#a5b4fc',
+                weight: 2,
+                opacity: 0.8,
+                lineCap: 'round',
+                lineJoin: 'round'
               }}
             />
           </>

@@ -204,10 +204,10 @@ class RouteOptimizer:
             final_route_stops.append(end_node)
 
         # -------------------------------------------------------------
-        # STEP 3: Format Stops, Cumulative Distance & ETAs
+        # STEP 3: Format Stops, Cumulative Distance & Real Road Geometry
         # -------------------------------------------------------------
         formatted_stops = []
-        polyline_coords = []
+        direct_polyline_coords = []
         cumulative_dist = 0.0
         cumulative_time = 0.0
         total_waste_liters = 0.0
@@ -225,82 +225,107 @@ class RouteOptimizer:
                 dist_from_prev = haversine_distance(prev["latitude"], prev["longitude"], stop["latitude"], stop["longitude"])
 
             cumulative_dist += dist_from_prev
-            # Travel time at 30 km/h
-            travel_time_min = (dist_from_prev / AVERAGE_SPEED_KMPH) * 60.0
-            cumulative_time += travel_time_min
+            # Travel time at 30 km/h + 5 min operational collection stop
+            travel_time_min = (dist_from_prev / 30.0) * 60.0
+            dwell_time_min = 0.0 if is_depot else 5.0
+            cumulative_time += (travel_time_min + dwell_time_min)
+
+            fill_pct = float(stop.get("current_fill_level_pct", 0.0))
+            cap = float(stop.get("bin_capacity_liters", 800.0))
+            waste_vol = (fill_pct / 100.0) * cap if not is_depot else 0.0
+            total_waste_liters += waste_vol
 
             if not is_depot:
                 stop_counter += 1
-                cumulative_time += SERVICE_TIME_MINUTES_PER_STOP
-                # Calculate estimated collected waste
-                cap = float(stop.get("bin_capacity_liters", 800.0))
-                fill = float(stop.get("current_fill_level_pct", 50.0))
-                waste_vol = cap * (fill / 100.0)
-                total_waste_liters += waste_vol
-
-                stop_type = "on_the_way_collection" if stop.get("is_on_the_way") else "primary_collection"
-            else:
-                stop_type = "depot_start" if is_start else "depot_return"
-
-            polyline_coords.append([round(stop["latitude"], 6), round(stop["longitude"], 6)])
 
             formatted_stops.append({
-                "stop_number": 0 if is_start else (stop_counter if not is_depot else stop_counter + 1),
-                "type": stop_type,
+                "stop_index": idx,
+                "display_index": stop_counter if not is_depot else ("DEPOT" if is_start else "DEPOT"),
+                "is_depot": is_depot,
+                "is_start": is_start,
+                "is_end": is_end,
                 "is_on_the_way": stop.get("is_on_the_way", False),
                 "bin_id": stop.get("bin_id"),
-                "name": stop.get("name", f"Bin {stop.get('bin_id')} ({stop.get('area_type', '')})"),
+                "name": stop.get("name") or stop.get("bin_name"),
+                "area_type": stop.get("area_type", "Industrial / Logistics"),
                 "latitude": round(stop["latitude"], 6),
                 "longitude": round(stop["longitude"], 6),
-                "locality": stop.get("locality", "Central"),
-                "collection_zone": stop.get("collection_zone", "-"),
-                "area_type": stop.get("area_type", "Depot"),
-                "current_fill_level_pct": stop.get("current_fill_level_pct", 0.0),
-                "predicted_fill_6h_pct": stop.get("predicted_fill_6h_pct", 0.0),
-                "priority_score": stop.get("priority_score", 0.0),
-                "urgency_tier": stop.get("urgency_tier", "DEPOT"),
+                "current_fill_level_pct": fill_pct,
+                "predicted_fill_6h_pct": float(stop.get("predicted_fill_6h_pct", fill_pct)),
+                "urgency_tier": stop.get("urgency_tier", "CRITICAL" if not is_depot else "LOW"),
+                "priority_score": float(stop.get("priority_score", 0.0)),
+                "waste_liters": round(waste_vol, 1),
                 "distance_from_prev_km": round(dist_from_prev, 2),
                 "cumulative_distance_km": round(cumulative_dist, 2),
                 "eta_minutes": round(cumulative_time, 1)
             })
 
-        # -------------------------------------------------------------
-        # STEP 4: Cost & Efficiency Analytics
-        # -------------------------------------------------------------
-        total_dist = round(cumulative_dist, 2)
-        total_duration = round(cumulative_time, 1)
+            direct_polyline_coords.append([round(stop["latitude"], 6), round(stop["longitude"], 6)])
 
-        # Baseline comparison: Static fixed municipal route visiting all 20 bins
-        opt_fuel = total_dist * FUEL_CONSUMPTION_L_PER_KM
-        base_fuel = BASELINE_FIXED_ROUTE_KM * (FUEL_CONSUMPTION_L_PER_KM * 1.15)
-        fuel_saved_l = max(0.0, base_fuel - opt_fuel)
-        fuel_savings_pct = (fuel_saved_l / base_fuel) * 100.0 if base_fuel > 0 else 0.0
-        cost_saved_inr = fuel_saved_l * FUEL_PRICE_PER_LITER
+        # -------------------------------------------------------------
+        # STEP 4: Fetch Exact Real-Road Geometry via OpenStreetMap Routing
+        # -------------------------------------------------------------
+        road_polyline_coords = cls.fetch_real_road_geometry(final_route_stops, direct_polyline_coords)
 
-        primary_count = len(primary_path)
-        on_the_way_count = sum(1 for s in formatted_stops if s.get("is_on_the_way"))
+        # Baseline fixed static route = 42.5 km
+        baseline_fixed_km = 42.5
+        distance_saved = max(0.0, baseline_fixed_km - cumulative_dist)
+        fuel_saved_liters = (distance_saved / 100.0) * 27.65
+        savings_pct = (distance_saved / baseline_fixed_km) * 100.0 if baseline_fixed_km > 0 else 0.0
 
         return {
             "status": "success",
-            "depot": {
-                "latitude": depot_lat,
-                "longitude": depot_lon,
-                "name": "Central Waste Operations Depot"
-            },
             "summary": {
                 "total_collection_stops": stop_counter,
-                "primary_stops_count": primary_count,
-                "on_the_way_stops_count": on_the_way_count,
-                "total_route_distance_km": total_dist,
-                "estimated_duration_minutes": total_duration,
+                "primary_stops_count": len([s for s in formatted_stops if not s["is_depot"] and not s["is_on_the_way"]]),
+                "on_the_way_stops_count": len([s for s in formatted_stops if not s["is_depot"] and s["is_on_the_way"]]),
+                "total_route_distance_km": round(cumulative_dist, 2),
+                "estimated_duration_minutes": round(cumulative_time, 1),
                 "total_waste_collected_liters": round(total_waste_liters, 1),
-                "baseline_fixed_route_km": BASELINE_FIXED_ROUTE_KM,
-                "distance_saved_km": round(max(0.0, BASELINE_FIXED_ROUTE_KM - total_dist), 2),
-                "fuel_consumed_liters": round(opt_fuel, 2),
-                "fuel_saved_liters": round(fuel_saved_l, 2),
-                "fuel_savings_pct": round(fuel_savings_pct, 1),
-                "estimated_cost_savings_inr": round(cost_saved_inr, 2)
+                "baseline_fixed_route_km": baseline_fixed_km,
+                "distance_saved_km": round(distance_saved, 2),
+                "fuel_consumed_liters": round((cumulative_dist / 100.0) * 27.65, 2),
+                "fuel_saved_liters": round(fuel_saved_liters, 2),
+                "fuel_savings_pct": round(savings_pct, 1),
+                "estimated_cost_savings_inr": round(fuel_saved_liters * 100.0, 2)
             },
             "stops": formatted_stops,
-            "polyline_coordinates": polyline_coords
+            "depot": {"latitude": depot_lat, "longitude": depot_lon},
+            "polyline_coordinates": road_polyline_coords
         }
+
+    @staticmethod
+    def fetch_real_road_geometry(stops: List[Dict[str, Any]], fallback_coords: List[List[float]]) -> List[List[float]]:
+        """
+        Fetches exact real-road GPS coordinates from OpenStreetMap / OSRM routing engine.
+        Follows real streets, road curves, roundabouts, and highways.
+        """
+        import requests
+        if len(stops) < 2:
+            return fallback_coords
+
+        coords_list = [f"{s['longitude']},{s['latitude']}" for s in stops]
+        coords_str = ";".join(coords_list)
+        
+        # Primary & Secondary OSM routing endpoints
+        endpoints = [
+            f"https://routing.openstreetmap.de/routed-car/route/v1/driving/{coords_str}?overview=full&geometries=geojson",
+            f"http://router.project-osrm.org/route/v1/driving/{coords_str}?overview=full&geometries=geojson"
+        ]
+
+        for url in endpoints:
+            try:
+                headers = {"User-Agent": "WasteFlowNavigator/1.0"}
+                res = requests.get(url, headers=headers, timeout=6)
+                if res.status_code == 200:
+                    data = res.json()
+                    routes = data.get("routes", [])
+                    if routes:
+                        geom = routes[0].get("geometry", {}).get("coordinates", [])
+                        if geom:
+                            # Convert [lon, lat] -> [lat, lon] for Leaflet
+                            return [[round(lat, 6), round(lon, 6)] for lon, lat in geom]
+            except Exception:
+                continue
+
+        return fallback_coords
