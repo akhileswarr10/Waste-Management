@@ -4,21 +4,24 @@ import { Navigation, CheckCircle2, Fuel, Clock, MapPin, Sparkles, AlertCircle } 
 export default function RoutePanel({
   routeData,
   onCollectBin,
+  onCollectAll,
   collectingBinId,
+  collectingAll,
   isDriverView = false
 }) {
   const summary = routeData?.summary || {};
   const stops = routeData?.stops || [];
+  const pendingCollectionCount = stops.filter(s => !s.is_depot && s.bin_id).length;
 
   return (
     <div className="glass-panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column', height: '100%' }}>
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Navigation size={18} color="#818cf8" />
             <h3 style={{ fontSize: '16px', fontWeight: '700', color: '#f8fafc' }}>
-              {isDriverView ? 'Assigned Route Dispatch Manifest' : 'Greedy Route & Corridor Pipeline'}
+              {isDriverView ? 'Driver Assigned Route Manifest' : 'Greedy Route & Corridor Pipeline'}
             </h3>
           </div>
           <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
@@ -26,9 +29,36 @@ export default function RoutePanel({
           </p>
         </div>
 
-        <span className="glass-pill" style={{ padding: '4px 10px', borderRadius: '8px', fontSize: '11px', fontWeight: '700', color: '#818cf8', border: '1px solid rgba(129, 140, 248, 0.3)' }}>
-          {summary.total_collection_stops || 0} Total Stops
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {onCollectAll && pendingCollectionCount > 0 && (
+            <button
+              onClick={onCollectAll}
+              disabled={collectingAll}
+              style={{
+                padding: '6px 14px',
+                borderRadius: '8px',
+                border: 'none',
+                cursor: collectingAll ? 'not-allowed' : 'pointer',
+                background: 'linear-gradient(135deg, #10b981, #059669)',
+                color: '#ffffff',
+                fontWeight: '700',
+                fontSize: '12px',
+                boxShadow: '0 4px 12px rgba(16, 185, 129, 0.35)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                opacity: collectingAll ? 0.7 : 1
+              }}
+            >
+              <CheckCircle2 size={15} className={collectingAll ? 'animate-spin-slow' : ''} />
+              {collectingAll ? 'Collecting All...' : `Mark All as Completed (${pendingCollectionCount})`}
+            </button>
+          )}
+
+          <span className="glass-pill" style={{ padding: '4px 10px', borderRadius: '8px', fontSize: '11px', fontWeight: '700', color: '#818cf8', border: '1px solid rgba(129, 140, 248, 0.3)' }}>
+            {summary.total_collection_stops || 0} Total Stops
+          </span>
+        </div>
       </div>
 
       {/* Metrics Banner */}

@@ -109,7 +109,7 @@ export default function App() {
     }
   };
 
-  // Mark Bin as Collected (Driver & Admin Action)
+  // Mark Single Bin as Collected
   const handleCollectBin = async (binId) => {
     setCollectingBinId(binId);
     try {
@@ -128,6 +128,30 @@ export default function App() {
       showToast('Error recording collection', 'error');
     } finally {
       setCollectingBinId(null);
+    }
+  };
+
+  // Mark All Route Stops as Completed (Bulk Action)
+  const [collectingAll, setCollectingAll] = useState(false);
+  const handleCollectAll = async () => {
+    setCollectingAll(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/routes/collect-all`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({})
+      });
+      const data = await res.json();
+      if (data.status === 'success') {
+        showToast(data.message || 'All route stops marked as collected!');
+        await fetchData(true);
+      } else {
+        showToast(data.message || 'Bulk collection failed', 'error');
+      }
+    } catch (err) {
+      showToast('Error during bulk collection', 'error');
+    } finally {
+      setCollectingAll(false);
     }
   };
 
@@ -184,8 +208,10 @@ export default function App() {
         <SimulationToolbar
           onAdvanceTime={handleAdvanceTime}
           onResetSimulation={handleResetSimulation}
+          onCollectAll={handleCollectAll}
           advancing={advancing}
           resetting={resetting}
+          collectingAll={collectingAll}
         />
       )}
 
@@ -222,7 +248,9 @@ export default function App() {
             <RoutePanel
               routeData={routeData}
               onCollectBin={handleCollectBin}
+              onCollectAll={handleCollectAll}
               collectingBinId={collectingBinId}
+              collectingAll={collectingAll}
               isDriverView={true}
             />
           ) : (
@@ -267,7 +295,9 @@ export default function App() {
                 <RoutePanel
                   routeData={routeData}
                   onCollectBin={handleCollectBin}
+                  onCollectAll={handleCollectAll}
                   collectingBinId={collectingBinId}
+                  collectingAll={collectingAll}
                   isDriverView={false}
                 />
               ) : (

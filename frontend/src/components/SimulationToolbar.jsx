@@ -1,7 +1,7 @@
 import React from 'react';
 import { FastForward, Calendar, RotateCcw, Play, Sparkles } from 'lucide-react';
 
-export default function SimulationToolbar({ onAdvanceTime, onResetSimulation, advancing, resetting }) {
+export default function SimulationToolbar({ onAdvanceTime, onResetSimulation, onCollectAll, advancing, resetting, collectingAll }) {
   return (
     <div className="glass-panel" style={{
       margin: '0 16px 16px 16px',
@@ -89,7 +89,7 @@ export default function SimulationToolbar({ onAdvanceTime, onResetSimulation, ad
         {/* Reset */}
         <button
           onClick={onResetSimulation}
-          disabled={advancing || resetting}
+          disabled={advancing || resetting || collectingAll}
           className="glass-pill"
           style={{
             display: 'flex',
@@ -97,19 +97,47 @@ export default function SimulationToolbar({ onAdvanceTime, onResetSimulation, ad
             gap: '6px',
             padding: '8px 14px',
             borderRadius: '10px',
-            cursor: (advancing || resetting) ? 'not-allowed' : 'pointer',
+            cursor: (advancing || resetting || collectingAll) ? 'not-allowed' : 'pointer',
             color: '#ef4444',
             fontWeight: '600',
             fontSize: '13px',
             border: '1px solid rgba(239, 68, 68, 0.3)',
             transition: 'background 0.2s',
-            opacity: (advancing || resetting) ? 0.7 : 1
+            opacity: (advancing || resetting || collectingAll) ? 0.7 : 1
           }}
           title="Reset simulation to initial baseline fills"
         >
           <RotateCcw size={15} />
           Reset Baseline
         </button>
+
+        {/* Mark All Route Stops Completed */}
+        {onCollectAll && (
+          <button
+            onClick={onCollectAll}
+            disabled={advancing || resetting || collectingAll}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '8px 18px',
+              borderRadius: '10px',
+              border: 'none',
+              cursor: (advancing || resetting || collectingAll) ? 'not-allowed' : 'pointer',
+              background: 'linear-gradient(135deg, #059669, #047857)',
+              color: '#ffffff',
+              fontWeight: '700',
+              fontSize: '13px',
+              boxShadow: '0 4px 14px rgba(16, 185, 129, 0.4)',
+              transition: 'transform 0.15s',
+              opacity: (advancing || resetting || collectingAll) ? 0.7 : 1
+            }}
+            title="Collect all routed bins in one click"
+          >
+            <Sparkles size={16} className={collectingAll ? 'animate-spin-slow' : ''} />
+            {collectingAll ? 'Collecting All...' : 'Mark All Route as Completed'}
+          </button>
+        )}
       </div>
     </div>
   );

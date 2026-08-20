@@ -194,13 +194,83 @@ def collect_bin(bin_id):
         "sensor_anomaly": 0
     }])
 
+@app.route("/api/routes/collect-all", methods=["POST"])
+def collect_all_route_stops():
+    """
+    Simulates driver/admin completing the entire active route:
+    Collects all bins currently in the active route, resets their fill to 0.0%,
+    inserts collection records and 0.0% telemetry, and refreshes the route.
+    """
+    import datetime
+    from backend.services.optimizer import RouteOptimizer
+    
+    route_result = RouteOptimizer.generate_optimized_route()
+    stops = route_result.get("stops", [])
+    collection_stops = [s for s in stops if not s.get("is_depot") and s.get("bin_id") and not str(s.get("bin_id")).startswith("DEPOT")]
+    
+    if not collection_stops:
+        return jsonify({
+            "status": "success",
+            "message": "No active route stops pending collection.",
+            "collected_count": 0
+        })
+
+    sim_state = db.get_simulation_state()
+    v_time_str = sim_state.get("virtual_time") or datetime.datetime.now(datetime.timezone.utc).isoformat()
+    now_str = datetime.datetime.now(datetime.timezone.utc).isoformat()
+
+    collected_bin_ids = []
+    total_weight_kg = 0.0
+    telemetry_records = []
+    collection_logs = []
+    fills_dict = {}
+
+    for s in collection_stops:
+        b_id = s["bin_id"]
+        curr_fill = float(s.get("current_fill_level_pct", 80.0))
+        cap = float(s.get("bin_capacity_liters", 800.0))
+        weight_kg = round(cap * (curr_fill / 100.0) * 0.55, 1)
+        total_weight_kg += weight_kg
+        collected_bin_ids.append(b_id)
+        fills_dict[b_id] = 0.0
+
+        collection_logs.append({
+            "bin_id": b_id,
+            "driver_id": "22222222-2222-2222-2222-222222222222",
+            "collected_at": v_time_str,
+            "fill_level_before_pct": curr_fill,
+            "fill_level_after_pct": 0.0,
+            "collected_weight_kg": weight_kg,
+            "notes": "Bulk collected via Mark All as Completed"
+        })
+
+        telemetry_records.append({
+            "bin_id": b_id,
+            "timestamp": v_time_str,
+            "sensor_fill_level_pct": 0.0,
+            "temperature_c": 28.5,
+            "humidity_pct": 75.0,
+            "rainfall_mm": 0.0,
+            "is_holiday": 0,
+            "local_event": 0,
+            "sensor_anomaly": 0
+        })
+
+    # 1. Update all bin fills to 0.0% in DB
+    db.update_multiple_bin_fills(fills_dict)
+
+    # 2. Insert telemetry rows
+    db.insert_telemetry(telemetry_records)
+
+    # 3. Insert collection logs
+    for log in collection_logs:
+        db.insert_collection(log)
+
     return jsonify({
         "status": "success",
-        "message": f"Bin {bin_id} successfully collected and reset to 0%.",
-        "bin_id": bin_id,
-        "fill_before_pct": curr_fill,
-        "fill_after_pct": 0.0,
-        "collected_weight_kg": weight_kg
+        "message": f"Successfully collected all {len(collected_bin_ids)} route stops ({round(total_weight_kg, 1)} kg waste).",
+        "collected_bins": collected_bin_ids,
+        "total_weight_kg": round(total_weight_kg, 1)
     })
 
 # ---------------- TELEMETRY ENDPOINTS ----------------
