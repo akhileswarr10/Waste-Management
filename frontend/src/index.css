@@ -109,6 +109,7 @@ body {
 /* Navbar */
 .navbar-wrapper {
   display: flex;
+  flex-direction: row;
   align-items: center;
   justify-content: space-between;
   padding: 12px 24px;
@@ -119,7 +120,6 @@ body {
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-  flex-wrap: wrap;
   gap: 12px;
 }
 
@@ -127,6 +127,7 @@ body {
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-shrink: 0;
 }
 
 .navbar-clock-pill {
@@ -137,12 +138,25 @@ body {
   border-radius: 20px;
   border: 1px solid rgba(16, 185, 129, 0.25);
   background: rgba(16, 185, 129, 0.06);
+  flex-shrink: 1;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .navbar-actions-section {
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-shrink: 0;
+}
+
+.navbar-user-label {
+  text-align: right;
+}
+
+/* navbar-top-row only used on mobile via overrides below */
+.navbar-top-row {
+  display: contents;
 }
 
 /* Map Container Height */
@@ -323,18 +337,32 @@ body {
     border-radius: 14px;
   }
 
-  .navbar-top-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    width: 100%;
+  /* On mobile: brand and actions go side by side on top row */
+  .navbar-brand-section {
+    order: 1;
   }
 
+  .navbar-actions-section {
+    order: 2;
+    margin-left: auto;
+  }
+
+  /* Clock stretches full width on its own row below */
   .navbar-clock-pill {
+    order: 3;
     width: 100%;
     justify-content: center;
-    padding: 6px 10px;
-    font-size: 11px;
+    padding: 7px 10px;
+  }
+
+  /* Wrap brand + actions on first row, clock on second */
+  .navbar-wrapper {
+    flex-wrap: wrap;
+    flex-direction: row;
+  }
+
+  .navbar-user-label {
+    display: none;
   }
 
   .kpi-cards-grid {
