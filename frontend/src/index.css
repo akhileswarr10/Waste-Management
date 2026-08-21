@@ -64,7 +64,105 @@ body {
 .glass-pill {
   background: rgba(255, 255, 255, 0.05);
   backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Responsive Main Layout Grid */
+.main-content-grid {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr;
+  gap: 16px;
+  margin: 0 16px;
+}
+
+.main-content-grid.driver-layout {
+  grid-template-columns: 1fr 1.1fr;
+}
+
+/* KPI Cards Grid */
+.kpi-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin: 0 16px 16px 16px;
+}
+
+/* Simulation Toolbar */
+.sim-toolbar-wrapper {
+  margin: 0 16px 16px 16px;
+  padding: 14px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.sim-buttons-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* Navbar */
+.navbar-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 24px;
+  margin: 16px;
+  border-radius: 16px;
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.navbar-brand-section {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.navbar-clock-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  background: rgba(16, 185, 129, 0.06);
+}
+
+.navbar-actions-section {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Map Container Height */
+.map-responsive-container {
+  height: 520px;
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Route Panel Metrics Grid */
+.route-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 /* Map Containers & Leaflet Fixes */
@@ -183,3 +281,160 @@ body {
   border: 1px solid rgba(220, 38, 38, 0.5);
   animation: pulse-beacon 2s infinite;
 }
+
+/* =======================================================
+   RESPONSIVE MEDIA QUERIES (TABLETS & MOBILE PHONES)
+   ======================================================= */
+
+/* Tablet (1024px and below) */
+@media (max-width: 1024px) {
+  .main-content-grid,
+  .main-content-grid.driver-layout {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    margin: 0 12px;
+  }
+
+  .kpi-cards-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    margin: 0 12px 12px 12px;
+  }
+
+  .map-responsive-container {
+    height: 420px;
+  }
+
+  .navbar-wrapper,
+  .sim-toolbar-wrapper {
+    margin: 12px;
+    padding: 12px 16px;
+  }
+}
+
+/* Mobile Devices (768px and below) */
+@media (max-width: 768px) {
+  .navbar-wrapper {
+    margin: 8px 8px 12px 8px;
+    padding: 12px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    border-radius: 14px;
+  }
+
+  .navbar-top-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+  }
+
+  .navbar-clock-pill {
+    width: 100%;
+    justify-content: center;
+    padding: 6px 10px;
+    font-size: 11px;
+  }
+
+  .kpi-cards-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    margin: 0 8px 12px 8px;
+  }
+
+  .sim-toolbar-wrapper {
+    margin: 0 8px 12px 8px;
+    padding: 12px;
+    flex-direction: column;
+    align-items: stretch;
+    border-radius: 14px;
+    gap: 12px;
+  }
+
+  .sim-buttons-group {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    width: 100%;
+  }
+
+  .sim-buttons-group button {
+    justify-content: center;
+    padding: 10px 12px !important;
+  }
+
+  .sim-buttons-group .sim-btn-full {
+    grid-column: span 2;
+  }
+
+  .main-content-grid {
+    margin: 0 8px;
+    gap: 12px;
+  }
+
+  .map-responsive-container {
+    height: 360px;
+    border-radius: 14px;
+  }
+
+  .route-metrics-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    padding: 8px;
+  }
+
+  .route-metrics-grid div {
+    text-align: center;
+  }
+
+  .route-metrics-grid div div {
+    font-size: 14px !important;
+  }
+
+  /* Table styling on mobile */
+  .table-responsive-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .table-responsive-wrapper table {
+    min-width: 620px;
+  }
+
+  /* Toast notification on mobile */
+  .toast-container {
+    left: 12px !important;
+    right: 12px !important;
+    top: 12px !important;
+    justify-content: center;
+    text-align: center;
+  }
+}
+
+/* Extra Small Phones (480px and below) */
+@media (max-width: 480px) {
+  .kpi-cards-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .sim-buttons-group {
+    grid-template-columns: 1fr;
+  }
+
+  .sim-buttons-group .sim-btn-full {
+    grid-column: span 1;
+  }
+
+  .map-responsive-container {
+    height: 320px;
+  }
+
+  .login-card-responsive {
+    padding: 24px 16px !important;
+    margin: 8px !important;
+    border-radius: 18px !important;
+  }
+}
+

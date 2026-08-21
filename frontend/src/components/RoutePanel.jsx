@@ -62,16 +62,7 @@ export default function RoutePanel({
       </div>
 
       {/* Metrics Banner */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(3, 1fr)',
-        gap: '10px',
-        marginBottom: '16px',
-        background: 'rgba(255, 255, 255, 0.03)',
-        padding: '12px',
-        borderRadius: '12px',
-        border: '1px solid rgba(255, 255, 255, 0.05)'
-      }}>
+      <div className="route-metrics-grid">
         <div>
           <span style={{ fontSize: '10px', color: '#94a3b8', textTransform: 'uppercase' }}>Route Distance</span>
           <div style={{ fontSize: '16px', fontWeight: '800', color: '#f8fafc' }}>

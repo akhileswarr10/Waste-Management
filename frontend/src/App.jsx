@@ -210,7 +210,7 @@ export default function App() {
 
       {/* Toast Notification */}
       {toastMessage && (
-        <div style={{
+        <div className="toast-container" style={{
           position: 'fixed',
           top: '20px',
           right: '20px',
@@ -251,7 +251,7 @@ export default function App() {
       )}
 
       {/* Main Content Layout */}
-      <main style={{ margin: '0 16px', display: 'grid', gridTemplateColumns: activeRole === 'driver' ? '1fr 1.1fr' : '1.3fr 1fr', gap: '16px' }}>
+      <main className={`main-content-grid ${activeRole === 'driver' ? 'driver-layout' : 'admin-layout'}`}>
         {/* Left Column: Interactive Map */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 4px' }}>

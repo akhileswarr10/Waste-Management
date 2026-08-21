@@ -75,7 +75,7 @@ export default function LeafletMap({
   }, [routeStops]);
 
   return (
-    <div className="glass-panel" style={{ height: '520px', width: '100%', position: 'relative', overflow: 'hidden' }}>
+    <div className="glass-panel map-responsive-container">
       <MapContainer
         center={center}
         zoom={13}

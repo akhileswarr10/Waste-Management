@@ -27,15 +27,15 @@ export default function BinsTable({ bins = [], onSelectBin = null }) {
         </div>
 
         {/* Search & Filter Controls */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div className="glass-pill" style={{ display: 'flex', alignItems: 'center', padding: '6px 12px', borderRadius: '10px', gap: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', width: '100%', maxWidth: '400px' }}>
+          <div className="glass-pill" style={{ display: 'flex', alignItems: 'center', padding: '6px 12px', borderRadius: '10px', gap: '8px', flex: 1, minWidth: '140px' }}>
             <Search size={14} color="#94a3b8" />
             <input
               type="text"
               placeholder="Search Bin, Zone, Area..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              style={{ background: 'transparent', border: 'none', color: '#f8fafc', fontSize: '12px', outline: 'none', width: '160px' }}
+              style={{ background: 'transparent', border: 'none', color: '#f8fafc', fontSize: '12px', outline: 'none', width: '100%' }}
             />
           </div>
 
@@ -64,7 +64,7 @@ export default function BinsTable({ bins = [], onSelectBin = null }) {
       </div>
 
       {/* Table Content */}
-      <div style={{ overflowX: 'auto', flex: 1, maxHeight: '420px' }}>
+      <div className="table-responsive-wrapper" style={{ overflowX: 'auto', flex: 1, maxHeight: '420px' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', textAlign: 'left' }}>
           <thead>
             <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.1)', color: '#94a3b8' }}>

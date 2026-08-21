@@ -83,7 +83,7 @@ export default function LoginPage({ onLoginSuccess }) {
       }}></div>
 
       {/* Login Card Container */}
-      <div className="glass-panel" style={{
+      <div className="glass-panel login-card-responsive" style={{
         width: '100%',
         maxWidth: '460px',
         padding: '36px 32px',

@@ -47,12 +47,7 @@ export default function KPICards({ predictionsSummary, routeSummary }) {
   ];
 
   return (
-    <div style={{
-      display: 'grid',
-      gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-      gap: '16px',
-      margin: '0 16px 16px 16px'
-    }}>
+    <div className="kpi-cards-grid">
       {cards.map((c, i) => {
         const Icon = c.icon;
         return (
